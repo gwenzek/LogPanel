@@ -1,37 +1,6 @@
 {
     "version": 1,
-    "formatters": {
-        "simple": {
-            "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        },
-        "no_date": {
-            "format": "%(name)s - %(levelname)s - %(message)s",
-        },
-        "snitch": {
-            "format": "%(asctime)s - %(module)s - %(levelname)s - %(message)s",
-        },
-    },
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "level": "DEBUG",
-            "formatter": "no_date",
-            "stream": "ext://sys.stdout",
-        },
-        "log_panel": {
-            "class": "SublimeLogging.sublime_logging.OutputPanelHandler",
-            "level": "DEBUG",
-            "formatter": "simple",
-            "name": "Logging"
-        },
-        "snitch_panel": {
-            "class": "SublimeLogging.sublime_logging.OutputPanelHandler",
-            "level": "DEBUG",
-            "formatter": "snitch",
-            "name": "LoggingSnitch",
-        },
-    },
-    "root": {
+        "root": {
         "level": "INFO",
         // Chose where the logging should go to. Both console and panel can be active
         "handlers": [
@@ -40,9 +9,46 @@
         ],
     },
     "loggers": {
-        // Converts all `print` call to a log to a dedicated view.
-        // The snitch formatter will show the name of the module that did the raw print.
         "SublimeLoggingSnitch": {"handlers": ["snitch_panel"], "propagate": false},
     },
+    // TODO: This doesn't seems to have any effect ??
     "disable_existing": false,
+    // Converts all `print` call to a log to a dedicated view.
+    "snitch": false,
+    "formatters": {
+        "simple": {
+            "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        },
+        // No date to match the `print` calls.
+        "no_date": {
+            "format": "%(name)s - %(levelname)s - %(message)s",
+        },
+        // Show the name of the module that did the raw print
+        "snitch": {
+            "format": "%(asctime)s - %(module)s - %(levelname)s - %(message)s",
+        },
+    },
+    "handlers": {
+        // Outputs to regular Sublime console (Ctrl+`).
+        "console": {
+            "class": "logging.StreamHandler",
+            "level": "DEBUG",
+            "formatter": "no_date",
+            "stream": "ext://sys.stdout",
+        },
+        // Outputs to a Logging panel.
+        "log_panel": {
+            "class": "SublimeLogging.sublime_logging.OutputPanelHandler",
+            "level": "DEBUG",
+            "formatter": "simple",
+            "name": "Logging"
+        },
+        // Outputs to a dedicated LoggingSnitch panel
+        "snitch_panel": {
+            "class": "SublimeLogging.sublime_logging.OutputPanelHandler",
+            "level": "DEBUG",
+            "formatter": "snitch",
+            "name": "LoggingSnitch",
+        },
+    },
 }

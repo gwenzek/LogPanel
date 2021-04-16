@@ -7,12 +7,20 @@ import sublime
 from sublime_lib.st3 import sublime_lib
 
 VERSION = "{}{}".format(sys.version_info.major, sys.version_info.minor)
+DEBUG = False
+
+
+def debug(*args, **kwargs):
+    # Yeah I know, but we need to do print debugging to debug our logging plugin.
+    if DEBUG:
+        print("[SublimeLogging-debug]", *args, **kwargs)
 
 
 class OutputPanelHandler(logging.StreamHandler):
     @staticmethod
     def create_panel(name: str):
-        name += "_" + VERSION
+        if VERSION == "33":
+            name += " " + VERSION
         window = sublime.active_window()
         # Try to append to the existing panel instead of creating a new one.
         view = window.find_output_panel(name)
@@ -24,11 +32,17 @@ class OutputPanelHandler(logging.StreamHandler):
         self.panel = self.create_panel(name)
         super().__init__(self.panel)
 
+    def emit(self, record) -> None:
+        # Move cursor to end so that insertion happens at the end of the ouptut panel.
+        self.panel.seek_end()
+        super().emit(record)
+        # TODO: restore the original selection
+
 
 class SnitchingStdout:
     def __init__(self, console):
         self.console = console
-        self.logger = logging.getLogger("SublimeLoggingSnitch_{}".format(VERSION))
+        self.logger = logging.getLogger("SublimeLoggingSnitch")
         self.logger.warning(
             "Stdout will first go through {} before going to {}", (self, self.console)
         )
@@ -56,9 +70,9 @@ class SnitchingStdout:
         if caller == "<string>" or caller.endswith("/logging/__init__.py"):
             # * caller == <string> means printing from the console REPL
             # * don't snitch on logging calls.
-            print("won't snitch on [{}]".format(caller), file=self.console)
+            debug("won't snitch on [{}]".format(caller), file=self.console)
             return n
-        print("\nwill snitch on [{}] [{}]".format(caller, message), file=self.console)
+        debug("\nwill snitch on [{}] [{}]".format(caller, message), file=self.console)
         self.logger.info(message)
         return n
 
@@ -67,30 +81,46 @@ class SnitchingStdout:
 
 
 def to_dict(settings: sublime.Settings) -> dict:
-    keys = ["version", "formatters", "handlers", "root", "loggers"]
-    d = {key: settings.get(key) for key in keys}
-    if VERSION == "38":
-        print(settings.to_dict())
-    print(d)
+    keys = ["version", "formatters", "handlers", "root", "loggers", "disable_existing"]
+    d = {key: settings.get(key) for key in keys if settings.has(key)}
+    debug(d)
     return d
 
 
-def setup_logging(settings: sublime.Settings = None):
-    if settings is None:
-        settings = sublime.load_settings("sublime_logging.sublime-settings")
-        settings.clear_on_change("loggers")
-        settings.add_on_change("loggers", lambda: setup_logging(settings))
-
+def setup_logging(settings: sublime.Settings):
     logger = logging.getLogger("SublimeLogging")
-    logger.warning("Logging config will be reseted !")
+    logger.warning("Logging config for plugin_host {} will be resetted !".format(VERSION))
     logging.config.dictConfig(to_dict(settings))
-    logger.warning("Logging has been setup !")
+    logger.warning("Logging for plugin_host {} has been setup !", VERSION)
+    print("Logging for plugin_host {} should have been setup.".format(VERSION))
+    debug("SublimeLogging.getEffectiveLevel() = ", logger.getEffectiveLevel())
 
 
 def plugin_loaded():
-    setup_logging()
-    logger = logging.getLogger("SublimeLogging")
+    settings = sublime.load_settings("sublime_logging.sublime-settings")
+    settings.clear_on_change("loggers")
+    settings.add_on_change("loggers", lambda: setup_logging(settings))
 
+    setup_logging(settings)
+
+    debug(
+        "Enable Loggers:",
+        sorted([k for k, v in logging.root.manager.loggerDict.items() if not v.disabled]),
+    )
+    debug(
+        "Disabled Loggers:",
+        sorted([k for k, v in logging.root.manager.loggerDict.items() if v.disabled]),
+    )
+    # TODO: I don't understand why we need to reenable the loggers
+    for k, v in logging.root.manager.loggerDict.items():
+        v.disabled = False
+
+    if settings.get("snitch", False):
+        setup_snitching()
+
+
+def setup_snitching():
+    logger = logging.getLogger("SublimeLogging")
     console = sys.stdout
     if not isinstance(console, sublime._LogWriter):
         # This happens when hot reloading the package
@@ -109,8 +139,5 @@ def plugin_loaded():
         snitch,
         snitch.console,
     )
-    print("Loggers:", {k: v.disabled for k, v in logging.root.manager.loggerDict.items()})
-    for k, v in logging.root.manager.loggerDict.items():
-        v.disabled = False
     sys.stdout = snitch
-    print("this should be snitched on")
+    print("this should be snitched to LoggingSnitch panel")
