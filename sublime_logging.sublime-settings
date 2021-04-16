@@ -35,14 +35,14 @@
         "level": "INFO",
         // Chose where the logging should go to. Both console and panel can be active
         "handlers": [
-            // "console",
+            "console",
             "log_panel",
         ],
     },
     "loggers": {
         // Converts all `print` call to a log to a dedicated view.
         // The snitch formatter will show the name of the module that did the raw print.
-        // You should disable console output from the root logger as well to avoid double logging.
         "SublimeLoggingSnitch": {"handlers": ["snitch_panel"], "propagate": false},
     },
+    "disable_existing": false,
 }
