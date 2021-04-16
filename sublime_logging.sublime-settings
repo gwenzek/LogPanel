@@ -11,8 +11,8 @@
     "loggers": {
         "SublimeLoggingSnitch": {"handlers": ["snitch_panel"], "propagate": false},
     },
-    // TODO: This doesn't seems to have any effect ??
-    "disable_existing": false,
+    // This is very important do not remove :-)
+    "disable_existing_loggers": false,
     // Converts all `print` call to a log to a dedicated view.
     "snitch": false,
     "formatters": {

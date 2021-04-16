@@ -72,7 +72,6 @@ class SnitchingStdout:
             # * don't snitch on logging calls.
             debug("won't snitch on [{}]".format(caller), file=self.console)
             return n
-        debug("\nwill snitch on [{}] [{}]".format(caller, message), file=self.console)
         self.logger.info(message)
         return n
 
@@ -81,7 +80,7 @@ class SnitchingStdout:
 
 
 def to_dict(settings: sublime.Settings) -> dict:
-    keys = ["version", "formatters", "handlers", "root", "loggers", "disable_existing"]
+    keys = ["version", "formatters", "handlers", "root", "loggers", "disable_existing_loggers"]
     d = {key: settings.get(key) for key in keys if settings.has(key)}
     debug(d)
     return d
@@ -91,7 +90,7 @@ def setup_logging(settings: sublime.Settings):
     logger = logging.getLogger("SublimeLogging")
     logger.warning("Logging config for plugin_host {} will be resetted !".format(VERSION))
     logging.config.dictConfig(to_dict(settings))
-    logger.warning("Logging for plugin_host {} has been setup !", VERSION)
+    logger.warning("Logging for plugin_host {} has been setup !".format(VERSION))
     print("Logging for plugin_host {} should have been setup.".format(VERSION))
     debug("SublimeLogging.getEffectiveLevel() = ", logger.getEffectiveLevel())
 
@@ -102,18 +101,6 @@ def plugin_loaded():
     settings.add_on_change("loggers", lambda: setup_logging(settings))
 
     setup_logging(settings)
-
-    debug(
-        "Enable Loggers:",
-        sorted([k for k, v in logging.root.manager.loggerDict.items() if not v.disabled]),
-    )
-    debug(
-        "Disabled Loggers:",
-        sorted([k for k, v in logging.root.manager.loggerDict.items() if v.disabled]),
-    )
-    # TODO: I don't understand why we need to reenable the loggers
-    for k, v in logging.root.manager.loggerDict.items():
-        v.disabled = False
 
     if settings.get("snitch", False):
         setup_snitching()
