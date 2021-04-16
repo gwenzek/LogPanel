@@ -1,3 +1,5 @@
+// Reference at:
+// https://docs.python.org/3/library/logging.config.html#logging-config-dictschema
 {
     "version": 1,
         "root": {
@@ -10,6 +12,9 @@
     },
     "loggers": {
         "SublimeLoggingSnitch": {"handlers": ["snitch_panel"], "propagate": false},
+        // Add other loggers here if you want. eg:
+        // "MyPlugin": {"level": "DEBUG"},
+        // "AnnoyingPlugin": {"level": "CRITICAL"},
     },
     // This is very important do not remove :-)
     "disable_existing_loggers": false,
@@ -37,6 +42,7 @@
             "stream": "ext://sys.stdout",
         },
         // Outputs to a Logging panel.
+        // You can copy this to create another panel.
         "log_panel": {
             "class": "SublimeLogging.sublime_logging.OutputPanelHandler",
             "level": "DEBUG",
