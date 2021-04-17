@@ -11,7 +11,7 @@
         ],
     },
     "loggers": {
-        "SublimeLoggingSnitch": {"handlers": ["snitch_panel"], "propagate": false},
+        "LogPanelSnitch": {"handlers": ["snitch_panel"], "propagate": false},
         // Add other loggers here if you want. eg:
         // "MyPlugin": {"level": "DEBUG"},
         // "AnnoyingPlugin": {"level": "CRITICAL"},
@@ -44,14 +44,14 @@
         // Outputs to a Logging panel.
         // You can copy this to create another panel.
         "log_panel": {
-            "class": "SublimeLogging.sublime_logging.OutputPanelHandler",
+            "class": "LogPanel.sublime_logging.OutputPanelHandler",
             "level": "DEBUG",
             "formatter": "simple",
             "name": "Logging"
         },
         // Outputs to a dedicated LoggingSnitch panel
         "snitch_panel": {
-            "class": "SublimeLogging.sublime_logging.OutputPanelHandler",
+            "class": "LogPanel.sublime_logging.OutputPanelHandler",
             "level": "DEBUG",
             "formatter": "snitch",
             "name": "LoggingSnitch",

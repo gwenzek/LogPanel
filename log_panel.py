@@ -13,7 +13,7 @@ DEBUG = False
 def debug(*args, **kwargs):
     # Yeah I know, but we need to do print debugging to debug our logging plugin.
     if DEBUG:
-        print("[SublimeLogging-debug]", *args, **kwargs)
+        print("[LogPanel-debug]", *args, **kwargs)
 
 
 class OutputPanelHandler(logging.StreamHandler):
@@ -42,7 +42,7 @@ class OutputPanelHandler(logging.StreamHandler):
 class SnitchingStdout:
     def __init__(self, console):
         self.console = console
-        self.logger = logging.getLogger("SublimeLoggingSnitch")
+        self.logger = logging.getLogger("LogPanelSnitch")
         self.logger.warning(
             "Stdout will first go through {} before going to {}", (self, self.console)
         )
@@ -87,12 +87,12 @@ def to_dict(settings: sublime.Settings) -> dict:
 
 
 def setup_logging(settings: sublime.Settings):
-    logger = logging.getLogger("SublimeLogging")
+    logger = logging.getLogger("LogPanel")
     logger.warning("Logging config for plugin_host {} will be resetted !".format(VERSION))
     logging.config.dictConfig(to_dict(settings))
     logger.warning("Logging for plugin_host {} has been setup !".format(VERSION))
     print("Logging for plugin_host {} should have been setup.".format(VERSION))
-    debug("SublimeLogging.getEffectiveLevel() = ", logger.getEffectiveLevel())
+    debug("LogPanel.getEffectiveLevel() = ", logger.getEffectiveLevel())
 
 
 def plugin_loaded():
@@ -107,7 +107,7 @@ def plugin_loaded():
 
 
 def setup_snitching():
-    logger = logging.getLogger("SublimeLogging")
+    logger = logging.getLogger("LogPanel")
     console = sys.stdout
     if not isinstance(console, sublime._LogWriter):
         # This happens when hot reloading the package

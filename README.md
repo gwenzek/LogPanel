@@ -1,4 +1,4 @@
-# SublimeLogging
+# LogPanel
 
 Gather all the logging across ST packages into a dedicated panel.
 
