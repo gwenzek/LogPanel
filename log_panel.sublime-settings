@@ -4,7 +4,7 @@
     "version": 1,
     "root": {
         "level": "INFO",
-        // Chose where the logging should go to.
+        // Chooses where the logging should go to.
         "handlers": [
             "console",
             "log_panel",
