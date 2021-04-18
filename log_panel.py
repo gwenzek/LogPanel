@@ -4,9 +4,9 @@ import os
 import sys
 
 import sublime
+from pathlib import Path
 from sublime_lib.st3 import sublime_lib
 
-VERSION = "{}{}".format(sys.version_info.major, sys.version_info.minor)
 DEBUG = False
 
 
@@ -19,8 +19,6 @@ def debug(*args, **kwargs):
 class OutputPanelHandler(logging.StreamHandler):
     @staticmethod
     def create_panel(name: str):
-        if VERSION == "33":
-            name += " " + VERSION
         window = sublime.active_window()
         # Try to append to the existing panel instead of creating a new one.
         view = window.find_output_panel(name)
@@ -39,11 +37,20 @@ class OutputPanelHandler(logging.StreamHandler):
         # TODO: restore the original selection
 
 
+VERSION = "{}.{}.{}".format(*sys.version_info)
+
+
+class AddPyVersion(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.py_version = VERSION  # type: ignore
+        return True
+
+
 class SnitchingStdout:
     def __init__(self, console):
         self.console = console
         self.logger = logging.getLogger("LogPanelSnitch")
-        self.logger.warning(
+        self.logger.info(
             "Stdout will first go through {} before going to {}", (self, self.console)
         )
         self._buffer = []
@@ -65,6 +72,7 @@ class SnitchingStdout:
         message = self.get_message(text)
         if not message:
             return n
+        # TODO: should this be a log filter instead ?
         frame = sys._getframe(1)
         caller = frame.f_code.co_filename
         if caller == "<string>" or caller.endswith("/logging/__init__.py"):
@@ -80,23 +88,38 @@ class SnitchingStdout:
 
 
 def to_dict(settings: sublime.Settings) -> dict:
-    keys = ["version", "formatters", "handlers", "root", "loggers", "disable_existing_loggers"]
-    d = {key: settings.get(key) for key in keys if settings.has(key)}
+    keys = [
+        "version",
+        "root",
+        "loggers",
+        "handlers",
+        "formatters",
+        "filters",
+        "disable_existing_loggers",
+    ]
+    d = {key: settings.get(key) for key in keys}
     debug(d)
     return d
 
 
 def setup_logging(settings: sublime.Settings):
     logger = logging.getLogger("LogPanel")
-    logger.warning("Logging config for plugin_host {} will be resetted !".format(VERSION))
-    logging.config.dictConfig(to_dict(settings))
-    logger.warning("Logging for plugin_host {} has been setup !".format(VERSION))
+    logger.info("Logging config for plugin_host {} will be resetted !".format(VERSION))
+    config = to_dict(settings)
+    # Creates directories for logging files.
+    for handler in config.get("handlers", {}).values():
+        filename = handler.get("filename")
+        if not filename or Path(filename).parent.exists():
+            continue
+        Path(filename).parent.mkdir(parents=True)
+    logging.config.dictConfig(config)
+    logger.info("Logging for plugin_host {} has been setup !".format(VERSION))
     print("Logging for plugin_host {} should have been setup.".format(VERSION))
     debug("LogPanel.getEffectiveLevel() = ", logger.getEffectiveLevel())
 
 
 def plugin_loaded():
-    settings = sublime.load_settings("sublime_logging.sublime-settings")
+    settings = sublime.load_settings("log_panel.sublime-settings")
     settings.clear_on_change("loggers")
     settings.add_on_change("loggers", lambda: setup_logging(settings))
 
@@ -112,7 +135,7 @@ def setup_snitching():
     if not isinstance(console, sublime._LogWriter):
         # This happens when hot reloading the package
         console = getattr(sys.stdout, "console", None)
-        if console is None:
+        if console is None or not isinstance(console, sublime._LogWriter):
             logger.error(
                 "Wasn't able to identify the Sublime console object, "
                 "Snitching is disabled. Try restarting ST."
@@ -127,4 +150,4 @@ def setup_snitching():
         snitch.console,
     )
     sys.stdout = snitch
-    print("this should be snitched to LoggingSnitch panel")
+    print("This should be snitched to 'Log - Snitch' panel")

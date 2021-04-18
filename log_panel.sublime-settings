@@ -2,35 +2,41 @@
 // https://docs.python.org/3/library/logging.config.html#logging-config-dictschema
 {
     "version": 1,
-        "root": {
+    "root": {
         "level": "INFO",
-        // Chose where the logging should go to. Both console and panel can be active
+        // Chose where the logging should go to.
         "handlers": [
             "console",
             "log_panel",
+            // "file",
         ],
     },
     "loggers": {
         "LogPanelSnitch": {"handlers": ["snitch_panel"], "propagate": false},
         // Add other loggers here if you want. eg:
-        // "MyPlugin": {"level": "DEBUG"},
         // "AnnoyingPlugin": {"level": "CRITICAL"},
+        // "MyPlugin": {"level": "DEBUG", "handlers": ["file"]},
+        // Note that the loggers also pass their logs to the root logger defined above.
     },
     // This is very important do not remove :-)
+    // Other plugins may already been loaded and have setup their own loggers.
     "disable_existing_loggers": false,
-    // Converts all `print` call to a log to a dedicated view.
-    "snitch": false,
+    // Converts all `print` call to a log to a `Logs - Snitch` Panel
+    "snitch": true,
     "formatters": {
         "simple": {
             "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         },
-        // No date to match the `print` calls.
         "no_date": {
             "format": "%(name)s - %(levelname)s - %(message)s",
         },
-        // Show the name of the module that did the raw print
-        "snitch": {
-            "format": "%(asctime)s - %(module)s - %(levelname)s - %(message)s",
+        // Note that "with_py_version" and "module" both require the "add_py_version" filter
+        "with_py_version": {
+            "format": "%(asctime)s - %(name)s %(py_version)s - %(levelname)s - %(message)s",
+        },
+        // Use the module name rather than the logger name
+        "module": {
+            "format": "%(asctime)s - %(module)s %(py_version)s - %(levelname)s - %(message)s",
         },
     },
     "handlers": {
@@ -38,23 +44,40 @@
         "console": {
             "class": "logging.StreamHandler",
             "level": "DEBUG",
+            // No date to not stand-out too much against non logging output.
             "formatter": "no_date",
             "stream": "ext://sys.stdout",
         },
-        // Outputs to a Logging panel.
+        // Outputs to the Logs panel.
         // You can copy this to create another panel.
         "log_panel": {
-            "class": "LogPanel.sublime_logging.OutputPanelHandler",
+            "class": "LogPanel.log_panel.OutputPanelHandler",
             "level": "DEBUG",
-            "formatter": "simple",
-            "name": "Logging"
+            "formatter": "with_py_version",
+            "filters": ["add_py_version"],
+            "name": "Logs",
         },
-        // Outputs to a dedicated LoggingSnitch panel
+        // Outputs to a dedicated "Logs - Snitch" panel
         "snitch_panel": {
-            "class": "LogPanel.sublime_logging.OutputPanelHandler",
+            "class": "LogPanel.log_panel.OutputPanelHandler",
             "level": "DEBUG",
-            "formatter": "snitch",
-            "name": "LoggingSnitch",
+            // module because the logger name will always be 'LogPanelSnitch'
+            "formatter": "module",
+            "filters": ["add_py_version"],
+            "name": "Logs - Snitch",
         },
+        // Ouptput to a file
+        "file": {
+            // Only keep last 32kB of logs
+            "class": "logging.handlers.RotatingFileHandler",
+            "formatter": "with_py_version",
+            "filters": ["add_py_version"],
+            "filename": "Packages/User/LogPanel/log_panel.log",
+            "maxBytes": 16000,
+            "backupCount": 2,
+        },
+    },
+    "filters": {
+        "add_py_version": {"()": "LogPanel.log_panel.AddPyVersion"},
     },
 }
