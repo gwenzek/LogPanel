@@ -4,11 +4,11 @@ import os
 import sys
 
 import sublime
+import functools
 from pathlib import Path
-from sublime_lib.st3 import sublime_lib
 
 DEBUG = False
-
+logging.raiseExceptions = DEBUG
 
 def debug(*args, **kwargs):
     # Yeah I know, but we need to do print debugging to debug our logging plugin.
@@ -16,7 +16,7 @@ def debug(*args, **kwargs):
         print("[LogPanel-debug]", *args, **kwargs)
 
 
-class OutputPanelHandler(logging.StreamHandler):
+class OutputPanelHandler(logging.Handler):
     @staticmethod
     def create_panel(name: str):
         # TODO: This forces the logs to be on the window active at load time.
@@ -26,19 +26,33 @@ class OutputPanelHandler(logging.StreamHandler):
         view = window.find_output_panel(name)
         if not view:
             view = window.create_output_panel(name)
-        # TODO: Do we really need sublime_lib here ?
-        # We only need to call the insert command from `emit`
-        return sublime_lib.OutputPanel.create(window, name)
+        return view
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, level: int = logging.NOTSET):
+        super().__init__(level)
+        self.name = name
         self.panel = self.create_panel(name)
-        super().__init__(self.panel)
 
-    def emit(self, record) -> None:
+    def insert_at_end(self, view: sublime.View, message: str) -> None:
         # Move cursor to end so that insertion happens at the end of the ouptut panel.
-        self.panel.seek_end()
-        super().emit(record)
+        selection = view.sel()
+        selection.clear()
+        selection.add(sublime.Region(view.size()))
+        self.panel.run_command("insert", {"characters": message})
         # TODO: restore the original selection
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            message = self.format(record) + "\n"
+            self.insert_at_end(self.panel, message)
+        except Exception:
+            if DEBUG:
+                logging.raiseExceptions = True
+            self.handleError(record)
+
+    def __repr__(self):
+        level = logging.getLevelName(self.level)
+        return "<%s(%s) (%s)>" % (self.__class__.__name__, self.name, level)
 
 
 VERSION = "{}.{}.{}".format(*sys.version_info)
@@ -49,6 +63,7 @@ class AddPyVersion(logging.Filter):
 
     It can be used by formatters using '%(py_version)s'.
     """
+
     def filter(self, record: logging.LogRecord) -> bool:
         record.py_version = VERSION  # type: ignore
         return True
@@ -56,6 +71,7 @@ class AddPyVersion(logging.Filter):
 
 class SnitchingStdout:
     """Aims at detecting `print` call that can be replaced by `logging` calls."""
+
     def __init__(self, console):
         self.console = console
         self.logger = logging.getLogger("LogPanelSnitch")
@@ -123,7 +139,7 @@ def setup_logging(settings: sublime.Settings):
         Path(filename).parent.mkdir(parents=True)
     logging.config.dictConfig(config)
     logger.info("Logging for plugin_host {} has been setup !".format(VERSION))
-    print("Logging for plugin_host {} should have been setup.".format(VERSION))
+    debug("Logging for plugin_host {} should have been setup.".format(VERSION))
     debug("LogPanel.getEffectiveLevel() = ", logger.getEffectiveLevel())
 
 
@@ -176,6 +192,7 @@ def log_errors(logger_name: str):
     """
     # TODO: Should we try to automatically get a name using the caller module?
     def wrapper(fn):
+        @functools.wraps(fn)
         def fn_and_log_errors(*args, **kwargs):
             try:
                 fn(*args, **kwargs)
