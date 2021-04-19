@@ -51,7 +51,7 @@
         // Outputs to the Logs panel.
         // You can copy this to create another panel.
         "log_panel": {
-            "class": "LogPanel.log_panel.OutputPanelHandler",
+            "class": "LogPanel.OutputPanelHandler",
             "level": "DEBUG",
             "formatter": "with_py_version",
             "filters": ["add_py_version"],
@@ -59,7 +59,7 @@
         },
         // Outputs to a dedicated "Logs - Snitch" panel
         "snitch_panel": {
-            "class": "LogPanel.log_panel.OutputPanelHandler",
+            "class": "LogPanel.OutputPanelHandler",
             "level": "DEBUG",
             // module because the logger name will always be 'LogPanelSnitch'
             "formatter": "module",
@@ -78,6 +78,6 @@
         },
     },
     "filters": {
-        "add_py_version": {"()": "LogPanel.log_panel.AddPyVersion"},
+        "add_py_version": {"()": "LogPanel.AddPyVersion"},
     },
 }
