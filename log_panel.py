@@ -1,6 +1,7 @@
 import logging
 import logging.config
 import os
+import shutil
 import sys
 
 import sublime
@@ -55,7 +56,7 @@ class OutputPanelHandler(logging.Handler):
         return "<%s(%s) (%s)>" % (self.__class__.__name__, self.name, level)
 
 
-VERSION = "{}.{}.{}".format(*sys.version_info)
+VERSION = "{}.{}".format(*sys.version_info)
 
 
 class AddPyVersion(logging.Filter):
@@ -179,6 +180,13 @@ def setup_snitching():
     print("This should be snitched to 'Log - Snitch' panel")
 
 
+def setup_log_panel_33() -> None:
+    packages = Path(__file__).parent.parent
+    log_panel_33 = packages / "LogPanel33"
+    log_panel_33.mkdir(exist_ok=True)
+    shutil.copyfile(__file__, log_panel_33 / "__init__.py")
+
+
 def log_errors(logger_name: str):
     """Catch all execptions from the given function and log them.
 
@@ -202,3 +210,9 @@ def log_errors(logger_name: str):
         return fn_and_log_errors
 
     return wrapper
+
+
+# We don't delay this to `plugin_loaded`,
+# we want to setup the logging ASAP.
+if sys.version_info >= (3, 8):
+    setup_log_panel_33()
