@@ -1,6 +1,11 @@
-// Reference at:
-// https://docs.python.org/3/library/logging.config.html#logging-config-dictschema
 {
+    // log_panel Specific Settings
+    // Capture all `print` call to a log to a `Logs - Snitch` Panel
+    "snitch": false,
+
+    // All others keys are passed directly to logging.config.dictConfig()
+    // Reference at:
+    // https://docs.python.org/3/library/logging.config.html#logging-config-dictschema
     "version": 1,
     "root": {
         "level": "INFO",
@@ -18,11 +23,6 @@
         // "MyPlugin": {"level": "DEBUG", "handlers": ["file"]},
         // Note that the loggers also pass their logs to the root logger defined above.
     },
-    // This is very important do not remove :-)
-    // Other plugins may already been loaded and have setup their own loggers.
-    "disable_existing_loggers": false,
-    // Converts all `print` call to a log to a `Logs - Snitch` Panel
-    "snitch": true,
     "formatters": {
         "simple": {
             "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -78,6 +78,11 @@
         },
     },
     "filters": {
+        // Add Python version to the log record.
+        // Useful to distinguish between 3.3 and 3.8 plugins.
         "add_py_version": {"()": "LogPanel.AddPyVersion"},
     },
+    // This is very important do not remove :-)
+    // Other plugins may already been loaded and have setup their own loggers.
+    "disable_existing_loggers": false,
 }

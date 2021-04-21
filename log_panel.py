@@ -11,13 +11,72 @@ from pathlib import Path
 DEBUG = False
 logging.raiseExceptions = DEBUG
 
-def debug(*args, **kwargs):
-    # Yeah I know, but we need to do print debugging to debug our logging plugin.
-    if DEBUG:
-        print("[LogPanel-debug]", *args, **kwargs)
 
+### Core of the plugin ###
+
+SETTINGS = "log_panel.sublime-settings"
+
+
+def plugin_loaded():
+    settings = sublime.load_settings(SETTINGS)
+    settings.clear_on_change("loggers")
+    settings.add_on_change("loggers", lambda: setup_logging(settings))
+    settings.add_on_change("snitch", lambda: setup_snitching(settings))
+
+    setup_logging(settings)
+
+    if settings.get("snitch", False):
+        setup_snitching(settings)
+
+
+def setup_logging(settings: sublime.Settings):
+    logger = logging.getLogger("LogPanel")
+    logger.info("Logging config for plugin_host {} will be resetted !".format(VERSION))
+    config = to_dict(settings)
+    # Creates directories for logging files.
+    for handler in config.get("handlers", {}).values():
+        filename = handler.get("filename")
+        if not filename or Path(filename).parent.exists():
+            continue
+        Path(filename).parent.mkdir(parents=True)
+    logging.config.dictConfig(config)
+    logger.info("Logging for plugin_host {} has been setup !".format(VERSION))
+    debug("Logging for plugin_host {} should have been setup.".format(VERSION))
+    debug("LogPanel.getEffectiveLevel() = ", logger.getEffectiveLevel())
+
+
+def setup_log_panel_33() -> None:
+    packages = Path(__file__).parent.parent
+    log_panel_33 = packages / "LogPanel33"
+    log_panel_33.mkdir(exist_ok=True)
+    shutil.copyfile(__file__, log_panel_33 / "__init__.py")
+
+
+# We don't delay this to `plugin_loaded`,
+# we want to setup the logging ASAP.
+if sys.version_info >= (3, 8):
+    setup_log_panel_33()
+
+def to_dict(settings: sublime.Settings) -> dict:
+    """Converts the Setting obect into a logging config dict."""
+    keys = [
+        "version",
+        "root",
+        "loggers",
+        "handlers",
+        "formatters",
+        "filters",
+        "disable_existing_loggers",
+    ]
+    d = {key: settings.get(key) for key in keys}
+    debug(d)
+    return d
+
+
+### Extra logging tools for users ###
 
 class OutputPanelHandler(logging.Handler):
+    """A logging Handler that writes to a ST panel."""
     @staticmethod
     def create_panel(name: str):
         # TODO: This forces the logs to be on the window active at load time.
@@ -71,7 +130,7 @@ class AddPyVersion(logging.Filter):
 
 
 class SnitchingStdout:
-    """Aims at detecting `print` call that can be replaced by `logging` calls."""
+    """Capture `print` calls and log them with their module"""
 
     def __init__(self, console):
         self.console = console
@@ -106,56 +165,23 @@ class SnitchingStdout:
             # * don't snitch on logging calls.
             debug("won't snitch on [{}]".format(caller), file=self.console)
             return n
-        self.logger.info(message)
+
+        # We wan't to show the module / filename of the caller of `write`
+        # But stacklevel is new from Python 3.8
+        # TODO it's possible to implement this behavior
+        # by patching the logger.makeRecord fn:
+        # https://stackoverflow.com/questions/49987228/alter-python-logger-stack-level
+        if sys.version_info >= (3, 8):
+            self.logger.info(message, stacklevel=2)
+        else:
+            self.logger.info(message)
         return n
 
     def flush(self):
         self.console.flush()
 
 
-def to_dict(settings: sublime.Settings) -> dict:
-    keys = [
-        "version",
-        "root",
-        "loggers",
-        "handlers",
-        "formatters",
-        "filters",
-        "disable_existing_loggers",
-    ]
-    d = {key: settings.get(key) for key in keys}
-    debug(d)
-    return d
-
-
-def setup_logging(settings: sublime.Settings):
-    logger = logging.getLogger("LogPanel")
-    logger.info("Logging config for plugin_host {} will be resetted !".format(VERSION))
-    config = to_dict(settings)
-    # Creates directories for logging files.
-    for handler in config.get("handlers", {}).values():
-        filename = handler.get("filename")
-        if not filename or Path(filename).parent.exists():
-            continue
-        Path(filename).parent.mkdir(parents=True)
-    logging.config.dictConfig(config)
-    logger.info("Logging for plugin_host {} has been setup !".format(VERSION))
-    debug("Logging for plugin_host {} should have been setup.".format(VERSION))
-    debug("LogPanel.getEffectiveLevel() = ", logger.getEffectiveLevel())
-
-
-def plugin_loaded():
-    settings = sublime.load_settings("log_panel.sublime-settings")
-    settings.clear_on_change("loggers")
-    settings.add_on_change("loggers", lambda: setup_logging(settings))
-
-    setup_logging(settings)
-
-    if settings.get("snitch", False):
-        setup_snitching()
-
-
-def setup_snitching():
+def setup_snitching(settings: sublime.Settings):
     logger = logging.getLogger("LogPanel")
     console = sys.stdout
     if not isinstance(console, sublime._LogWriter):
@@ -169,6 +195,10 @@ def setup_snitching():
             logger.error("sys.stdout={}, sys.__stdout={}", sys.stdout, sys.__stdout__)
             return
 
+    if not settings.get("snitch", False):
+        # Restore the stdout
+        sys.stdout = console
+        return
     snitch = SnitchingStdout(console)
     logger.info(
         "Stdout will first go through {} before going to {}",
@@ -176,15 +206,8 @@ def setup_snitching():
         snitch.console,
     )
     sys.stdout = snitch
-    # Move this to a test case
+    # TODO: Move this to a test case
     print("This should be snitched to 'Log - Snitch' panel")
-
-
-def setup_log_panel_33() -> None:
-    packages = Path(__file__).parent.parent
-    log_panel_33 = packages / "LogPanel33"
-    log_panel_33.mkdir(exist_ok=True)
-    shutil.copyfile(__file__, log_panel_33 / "__init__.py")
 
 
 def log_errors(logger_name: str):
@@ -212,7 +235,7 @@ def log_errors(logger_name: str):
     return wrapper
 
 
-# We don't delay this to `plugin_loaded`,
-# we want to setup the logging ASAP.
-if sys.version_info >= (3, 8):
-    setup_log_panel_33()
+def debug(*args, **kwargs):
+    # Yeah I know, but we need to do print debugging to debug our logging plugin.
+    if DEBUG:
+        print("[LogPanel-debug]", *args, **kwargs)
