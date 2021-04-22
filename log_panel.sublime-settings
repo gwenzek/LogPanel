@@ -1,9 +1,10 @@
 {
-    // log_panel Specific Settings
+    // *** log_panel specific settings ***
     // Capture all `print` call to a log to a `Logs - Snitch` Panel
     "snitch": false,
 
-    // All others keys are passed directly to logging.config.dictConfig()
+    // *** regular Python logging config ***
+    // All keys below are passed directly to logging.config.dictConfig()
     // Reference at:
     // https://docs.python.org/3/library/logging.config.html#logging-config-dictschema
     "version": 1,
@@ -19,7 +20,7 @@
     "loggers": {
         "LogPanelSnitch": {"handlers": ["snitch_panel"], "propagate": false},
         // Add other loggers here if you want. eg:
-        // "AnnoyingPlugin": {"level": "CRITICAL"},
+        // "AnnoyingPlugin": {"level": "ERROR"},
         // "MyPlugin": {"level": "DEBUG", "handlers": ["file"]},
         // Note that the loggers also pass their logs to the root logger defined above.
     },
@@ -72,7 +73,7 @@
             "class": "logging.handlers.RotatingFileHandler",
             "formatter": "with_py_version",
             "filters": ["add_py_version"],
-            "filename": "Packages/User/LogPanel/log_panel.log",
+            "filename": "User/LogPanel/log_panel.log",
             "maxBytes": 16000,
             "backupCount": 2,
         },
