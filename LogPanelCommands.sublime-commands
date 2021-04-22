@@ -1,0 +1,15 @@
+[
+  { "caption": "Preferences: LogPanel",
+    "command": "edit_settings",
+    "args": {
+      "base_file": "${packages}/LogPanel/log_panel.sublime-settings",
+      "default": "{\n\t$0\n}\n"
+    }
+  },
+  { "caption": "LogPanel: Open Readme",
+    "command": "open_file",
+    "args": {
+      "file": "${packages}/LogPanel/README.md"
+    }
+  },
+]
