@@ -1,12 +1,13 @@
+import functools
+import io
 import logging
 import logging.config
 import os
 import shutil
 import sys
+from pathlib import Path
 
 import sublime
-import functools
-from pathlib import Path
 
 DEBUG = False
 logging.raiseExceptions = DEBUG
@@ -136,20 +137,22 @@ class AddPyVersion(logging.Filter):
 
     It can be used by formatters using '%(py_version)s'.
     """
+    # This could be moved to the log_record_factory, but I'm not sure it's worth it.
 
     def filter(self, record: logging.LogRecord) -> bool:
         record.py_version = VERSION  # type: ignore
         return True
 
 
-class SnitchingStdout:
-    """Capture `print` calls and log them with their module"""
+class SnitchingStdout(io.TextIOWrapper):
+    """Capture `print` calls and log them with their module."""
 
     def __init__(self, console):
+        super().__init__(console, encoding="utf8")
         self.console = console
         self.logger = logging.getLogger("LogPanelSnitch")
         self.logger.info(
-            "Stdout will first go through {} before going to {}", (self, self.console)
+            "Stdout will first go through %s before going to %s", self, self.console
         )
         self._buffer = []
 
