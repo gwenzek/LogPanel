@@ -73,7 +73,8 @@
             "class": "logging.handlers.RotatingFileHandler",
             "formatter": "with_py_version",
             "filters": ["add_py_version"],
-            "filename": "User/LogPanel/log_panel.log",
+            // Note that ${packages} gets exapnded
+            "filename": "${packages}/User/LogPanel/log_panel.log",
             "maxBytes": 16000,
             "backupCount": 2,
         },
