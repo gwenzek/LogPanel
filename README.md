@@ -11,35 +11,25 @@ Through the config you can easily:
 * find packages still using `print` (looking at you PackageControl)
   - enable `"snitch": true` in the config
 
+This package is compatible with both the python3.3 and python3.8 hosts.
 
-## Compatibility
+## Documentation
 
-This package should be compatible with both the python3.3 and python3.8 hosts.
-I'm not sure what's the best way to install both at the same time though.
+* [Get started](docs/1_get_started.md)
+* [How to ... ?](docs/2_how_to.md)
+* [Overview of this plugin architecture](docs/3_architecture.md)
+* [Logging Reference](docs/4_reference.md)
 
-## Make a logging friendly Package
+Note this follows the [Diátaxis Framework](https://diataxis.fr/) 
+for technical documentation authoring.
+I found it interesting as an author and it did helped me write
+this documentation.
 
-1. use `logging.info` / `logging.warning` / `logging.error` instead of `print`.
+## Settings and Key bindings
 
-2. use `logging.debug` instead of `if debug: print`
+Settings can be found using the command palette "Preferences: Log Panel".
 
-2. wrap your commands to catch errors and log them.
-Otherwise this will be done by ST itself, bypassing all config set by the users.
-`logging.exception(error)` will show the stacktrace of the error.
-`log_panel.py` contains `log_errors`,
-a function wrapper that can help you do that.
-
-3. if your package does a lot of work at load time,
-`LogPanel` may not have been loaded
-and the logs won't be properly directed.
-In this case consider making
-`LogPanel` a dependency of your package.
-
-
-## Key bindings
-
-`LogPanel` comes without any command,
-and therefore any keybinding.
+`LogPanel` comes without any command, and therefore any keybinding.
 But since it adds two more panels,
 I can recommand [SwitchPanel](https://packagecontrol.io/packages/SwitchPanel)
 to simplify switching between panels. 
