@@ -1,8 +1,8 @@
-import functools
 import io
+import json
 import logging
 import logging.config
-import os
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -11,65 +11,45 @@ import sublime
 
 DEBUG = False
 logging.raiseExceptions = DEBUG
+logger = logging.getLogger("LogPanel")
+
+### Tools to read .sublime-settings
 
 
-### Core of the plugin ###
-
-SETTINGS = "log_panel.sublime-settings"
-
-
-def plugin_loaded():
-    settings = sublime.load_settings(SETTINGS)
-    pkg_dir = sublime.active_window().extract_variables()["packages"]
-
-    settings.clear_on_change("loggers")
-    settings.add_on_change("loggers", lambda: setup_logging(settings, pkg_dir))
-    settings.add_on_change("snitch", lambda: setup_snitching(settings))
-
-    setup_logging(settings, pkg_dir)
-
-    if settings.get("snitch", False):
-        setup_snitching(settings)
+def _msub(pattern: str, repl: str, string: str) -> str:
+    num_lines = len(string.splitlines())
+    res = re.sub(pattern, repl, string, flags=re.MULTILINE)
+    res_num_lines = len(res.splitlines())
+    assert num_lines == res_num_lines
+    return res
 
 
-def setup_logging(settings: sublime.Settings, pkg_dir: str):
-    logger = logging.getLogger("LogPanel")
-    logger.info("Logging config for plugin_host %s will be resetted !", VERSION)
-    config = to_dict(settings)
-    # Creates directories for logging files.
-    for handler in config.get("handlers", {}).values():
-        filename = handler.get("filename")
-        if not filename:
-            continue
-        old_filename = filename
-        filename = sublime.expand_variables(filename, {"packages": pkg_dir})
-        logdir = Path(filename).parent
-        _debug("Creating dir for logs:", logdir)
-        handler["filename"] = filename
-        if logdir.exists():
-            continue
-        logdir.mkdir(parents=True)
+def _json_parse(text: str) -> dict:
+    og_text = text
+    text = _msub(r"^( *)//.*$", "", text)
+    text = _msub(r'//[^"\n]*$', "", text)
+    text = _msub(r",(\s*)]", r"\1]", text)
+    text = _msub(r",(\s*)}", r"\1}", text)
 
-    _debug("config.dictConfig", config["handlers"]["file"])
-    logging.config.dictConfig(config)
-    logger.info("Logging for plugin_host %s has been setup !", VERSION)
-    _debug("LogPanel.getEffectiveLevel() = ", logger.getEffectiveLevel())
+    try:
+        return json.loads(text)
+    except json.decoder.JSONDecodeError as json_err:
+        line, col = json_err.lineno, json_err.colno
+        err_lines = text.splitlines()[line - 2 : line]
+        err_ctx = "{} {}\n{}: {}\n  {}^".format(
+            line - 1, err_lines[0], line, err_lines[1], " " * col
+        )
+        raise Exception("Invalid json in settings file: \n" + err_ctx) from json_err
 
 
-def setup_log_panel_33() -> None:
-    pkg_dir = Path(__file__).parent.parent.parent / "Packages"
-    log_panel_33 = pkg_dir / "LogPanel33"
-    log_panel_33.mkdir(exist_ok=True)
-    shutil.copyfile(__file__, log_panel_33 / "__init__.py")
+def read_settings_file(file: str) -> dict:
+    """Read and parse a .sublime-settings file"""
+    with open(str(file)) as f:
+        text = f.read()
+    return _json_parse(text)
 
 
-# We don't delay this to `plugin_loaded`,
-# we want to setup the logging ASAP.
-if sys.version_info >= (3, 8):
-    setup_log_panel_33()
-
-
-def to_dict(settings: sublime.Settings) -> dict:
+def to_dict(settings: dict) -> dict:
     """Converts the Setting obect into a logging config dict."""
     keys = [
         "version",
@@ -81,11 +61,10 @@ def to_dict(settings: sublime.Settings) -> dict:
         "disable_existing_loggers",
     ]
     d = {key: settings.get(key) for key in keys}
-    _debug(d)
     return d
 
 
-### Extra logging tools for users ###
+### Extra logging tools for users
 
 
 class OutputPanelHandler(logging.Handler):
@@ -137,6 +116,7 @@ class AddPyVersion(logging.Filter):
 
     It can be used by formatters using '%(py_version)s'.
     """
+
     # This could be moved to the log_record_factory, but I'm not sure it's worth it.
 
     def filter(self, record: logging.LogRecord) -> bool:
@@ -179,7 +159,6 @@ class SnitchingStdout(io.TextIOWrapper):
         if caller == "<string>" or caller.endswith("/logging/__init__.py"):
             # * caller == <string> means printing from the console REPL
             # * don't snitch on logging calls.
-            _debug("won't snitch on [{}]".format(caller), file=self.console)
             return n
 
         # We wan't to show the module / filename of the caller of `write`
@@ -197,47 +176,16 @@ class SnitchingStdout(io.TextIOWrapper):
         self.console.flush()
 
 
-def setup_snitching(settings: sublime.Settings):
-    logger = logging.getLogger("LogPanel")
-    console = sys.stdout
-    if not isinstance(console, sublime._LogWriter):
-        # This happens when hot reloading the package
-        console = getattr(sys.stdout, "console", None)
-        if console is None or not isinstance(console, sublime._LogWriter):
-            logger.error(
-                "Wasn't able to identify the Sublime console object, "
-                "Snitching is disabled. Try restarting ST."
-            )
-            logger.error("sys.stdout={}, sys.__stdout={}", sys.stdout, sys.__stdout__)
-            return
-
-    if not settings.get("snitch", False):
-        # Restore the stdout
-        sys.stdout = console
-        return
-    snitch = SnitchingStdout(console)
-    logger.info(
-        "Stdout will first go through {} before going to {}",
-        snitch,
-        snitch.console,
-    )
-    sys.stdout = snitch
-    # TODO: Move this to a test case
-    print("This should be snitched to 'Log - Snitch' panel")
-
-
 def log_errors(logger_name: str):
     """Catch all execptions from the given function and log them.
-
     It's recommanded to add something similar to your Commands.
     Usage:
-
     class MyPluginCommand(sublime_plugin.TextCommand):
         @log_errors("MyPlugin")
         def run(self, edit, args):
             ...
     """
-    # TODO: Should we try to automatically get a name using the caller module?
+    # TODO: Should we try to automatically get a name using the
     def wrapper(fn):
         @functools.wraps(fn)
         def fn_and_log_errors(*args, **kwargs):
@@ -251,7 +199,99 @@ def log_errors(logger_name: str):
     return wrapper
 
 
-def _debug(*args, **kwargs):
-    # Yeah I know, but we need to do print debugging to debug our logging plugin.
-    if DEBUG:
-        print("[LogPanel-debug]", *args, **kwargs)
+### Logging setup
+
+# Note: this path are only correct when inside
+# the ST "Packages" or "Installed Packages" folder.
+SETTINGS = "log_panel.sublime-settings"
+PKG_DIR = Path(__file__).parent.parent.parent / "Packages"
+USER_SETTINGS = str(PKG_DIR / "User" / SETTINGS)
+DEFAULT_SETTINGS = str(PKG_DIR / "LogPanel" / SETTINGS)
+
+
+def load_sublime_settings() -> sublime.Settings:
+    settings = read_settings_file(DEFAULT_SETTINGS)
+    user_settings = read_settings_file(USER_SETTINGS)
+    settings.update(user_settings)
+    return settings  # type: ignore
+
+
+def setup_snitching(settings: sublime.Settings):
+    console = sys.stdout
+    if not isinstance(console, sublime._LogWriter):
+        # This happens when hot reloading the package
+        console = getattr(sys.stdout, "console", None)
+        if console is None or not isinstance(console, sublime._LogWriter):
+            logger.error(
+                "Wasn't able to identify the Sublime console object, "
+                "Snitching is disabled. Try restarting ST."
+            )
+            logger.error("sys.stdout=%s, sys.__stdout=%s", sys.stdout, sys.__stdout__)
+            return
+
+    if not settings.get("snitch", False):
+        # Restore the stdout
+        sys.stdout = console
+        return
+    snitch = SnitchingStdout(console)
+    logger.info(
+        "Stdout will first go through %s before going to %s",
+        snitch,
+        snitch.console,
+    )
+    sys.stdout = snitch
+    # TODO: Move this to a test case
+    print("This should be snitched to 'Log - Snitch' panel")
+
+
+def setup_logging(settings: sublime.Settings):
+    logger.debug("Logging config for plugin_host %s will be resetted !", VERSION)
+    config = to_dict(settings)  # type: ignore
+    # Creates directories for logging files.
+    for handler in config.get("handlers", {}).values():
+        filename = handler.get("filename")
+        if not filename:
+            continue
+        old_filename = filename
+        filename = filename.format(packages=PKG_DIR)
+        logdir = Path(filename).parent
+        logger.debug("Creating dir for logs: %s", logdir)
+        handler["filename"] = filename
+        if logdir.exists():
+            continue
+        logdir.mkdir(parents=True)
+
+    logger.debug("logging.dictConfig = %s", config)
+    logging.config.dictConfig(config)
+    logger.info("Logging for plugin_host %s has been setup !", VERSION)
+    logger.debug("LogPanel.getEffectiveLevel() = %s", logger.getEffectiveLevel())
+
+    setup_snitching(settings)
+
+
+def setup_log_panel_33() -> None:
+    log_panel_33 = PKG_DIR / "LogPanel33"
+    log_panel_33.mkdir(exist_ok=True)
+
+    shutil.copyfile(__file__, log_panel_33 / "__init__.py")
+
+
+# We don't delay this to `plugin_loaded`,
+# we want to setup the logging ASAP.
+if sys.version_info >= (3, 8):
+    setup_log_panel_33()
+
+
+setup_logging(load_sublime_settings())
+
+
+def plugin_loaded():
+    """Register triggers to update loading when settings change.
+
+    Note that the logging is not setup here.
+    """
+    settings = sublime.load_settings(SETTINGS)
+    pkg_dir = sublime.active_window().extract_variables()["packages"]
+
+    settings.clear_on_change("loggers")
+    settings.add_on_change("loggers", lambda: setup_logging(settings))
