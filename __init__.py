@@ -17,10 +17,12 @@ logger = logging.getLogger("LogPanel")
 
 
 def _msub(pattern: str, repl: str, string: str) -> str:
-    num_lines = len(string.splitlines())
     res = re.sub(pattern, repl, string, flags=re.MULTILINE)
-    res_num_lines = len(res.splitlines())
-    assert num_lines == res_num_lines
+    if DEBUG:
+        # This is costly, hide it behind a flag
+        num_lines = len(string.splitlines())
+        res_num_lines = len(res.splitlines())
+        assert num_lines == res_num_lines
     return res
 
 
@@ -99,8 +101,7 @@ class OutputPanelHandler(logging.Handler):
             message = self.format(record) + "\n"
             self.insert_at_end(self.panel, message)
         except Exception:
-            if DEBUG:
-                logging.raiseExceptions = True
+            logging.raiseExceptions = DEBUG
             self.handleError(record)
 
     def __repr__(self):

@@ -30,6 +30,7 @@ def log_panel():
             print(line, file=o)
     try:
         log_panel = __import__("log_panel")
+        log_panel.DEBUG = True
         yield log_panel
     finally:
         (TEST_DIR / "log_panel.py").unlink()
