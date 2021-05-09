@@ -40,7 +40,6 @@ Otherwise this will be done by ST itself, bypassing all config set by the users.
 a function wrapper that can help you do that.
 
 3. if your package does a lot of work at load time,
-`LogPanel` may not have been loaded
-and the logs won't be properly directed.
-In this case consider making
-`LogPanel` a dependency of your package.
+`LogPanel` may not have been loaded and the logs won't be properly directed.
+Since plugins are loaded by alphebetical order and we named this plugin "aaLogPanel" this shouldn't happen often.
+

@@ -52,7 +52,7 @@
         // Outputs to the Logs panel.
         // You can copy this to create another panel.
         "log_panel": {
-            "class": "LogPanel.OutputPanelHandler",
+            "class": "aaLogPanel.OutputPanelHandler",
             "level": "DEBUG",
             "formatter": "with_py_version",
             "filters": ["add_py_version"],
@@ -60,7 +60,7 @@
         },
         // Outputs to a dedicated "Logs - Snitch" panel
         "snitch_panel": {
-            "class": "LogPanel.OutputPanelHandler",
+            "class": "aaLogPanel.OutputPanelHandler",
             "level": "DEBUG",
             // module because the logger name will always be 'LogPanelSnitch'
             "formatter": "module",
@@ -73,8 +73,8 @@
             "class": "logging.handlers.RotatingFileHandler",
             "formatter": "with_py_version",
             "filters": ["add_py_version"],
-            // Note that ${packages} gets exapnded
-            "filename": "${packages}/User/LogPanel/log_panel.log",
+            // Not that the filenames are relative to the Package dir.
+            "filename": "User/LogPanel/log_panel.log",
             "maxBytes": 16000,
             "backupCount": 2,
         },
@@ -82,7 +82,7 @@
     "filters": {
         // Add Python version to the log record.
         // Useful to distinguish between 3.3 and 3.8 plugins.
-        "add_py_version": {"()": "LogPanel.AddPyVersion"},
+        "add_py_version": {"()": "aaLogPanel.AddPyVersion"},
     },
     // This is very important do not remove :-)
     // Other plugins may already been loaded and have setup their own loggers.

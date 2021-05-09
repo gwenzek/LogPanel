@@ -5,7 +5,7 @@ from pathlib import Path
 TEST_DIR = Path(__file__).parent
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module")
 def log_panel():
     """LogPanel codes depend on ST, we can't use it directly in test.
 
@@ -17,6 +17,7 @@ def log_panel():
         code = f.read().splitlines()
     sections = [(i, l) for i, l in enumerate(code) if l.startswith("###")]
 
+    # Explicit asserts to avoid confusion if we reorganise the file.
     assert sections[0][1] == "### Tools to read .sublime-settings"
     assert sections[1][1] == "### Extra logging tools for users"
     helpers_section = code[: sections[1][0]]
@@ -24,6 +25,7 @@ def log_panel():
     helpers_section = [
         "#" + l if l.startswith("import sublime") else l for l in helpers_section
     ]
+    # TODO: also load the "Loading helper" section and test it.
 
     with open(str(TEST_DIR / "log_panel.py"), "w") as o:
         for line in helpers_section:

@@ -207,7 +207,7 @@ def log_errors(logger_name: str):
 SETTINGS = "log_panel.sublime-settings"
 PKG_DIR = Path(__file__).parent.parent.parent / "Packages"
 USER_SETTINGS = str(PKG_DIR / "User" / SETTINGS)
-DEFAULT_SETTINGS = str(PKG_DIR / "LogPanel" / SETTINGS)
+DEFAULT_SETTINGS = str(PKG_DIR / "aaLogPanel" / SETTINGS)
 
 
 def load_sublime_settings() -> sublime.Settings:
@@ -253,25 +253,28 @@ def setup_logging(settings: sublime.Settings):
         filename = handler.get("filename")
         if not filename:
             continue
-        old_filename = filename
-        filename = filename.format(packages=PKG_DIR)
-        logdir = Path(filename).parent
-        logger.debug("Creating dir for logs: %s", logdir)
-        handler["filename"] = filename
-        if logdir.exists():
-            continue
-        logdir.mkdir(parents=True)
+        logfile = Path(filename)
+        if not logfile.is_absolute():
+            logfile = PKG_DIR / logfile
+        print("Creating dir for logs: %s", logfile)
+        handler["filename"] = str(logfile)
+        if not logfile.parent.exists():
+            logfile.parent.mkdir(parents=True)
 
     logger.debug("logging.dictConfig = %s", config)
-    logging.config.dictConfig(config)
-    logger.info("Logging for plugin_host %s has been setup !", VERSION)
-    logger.debug("LogPanel.getEffectiveLevel() = %s", logger.getEffectiveLevel())
+    try:
+        logging.config.dictConfig(config)
+        logger.info("Logging for plugin_host %s has been setup !", VERSION)
+        logger.debug("LogPanel.getEffectiveLevel() = %s", logger.getEffectiveLevel())
+        setup_snitching(settings)
 
-    setup_snitching(settings)
+    except Exception as e:
+        # Catch exception otherwise we can't load the module
+        logger.exception(e)
 
 
 def setup_log_panel_33() -> None:
-    log_panel_33 = PKG_DIR / "LogPanel33"
+    log_panel_33 = PKG_DIR / "aaLogPanel33"
     log_panel_33.mkdir(exist_ok=True)
 
     shutil.copyfile(__file__, log_panel_33 / "__init__.py")
