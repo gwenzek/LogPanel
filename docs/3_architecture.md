@@ -5,16 +5,22 @@
 At its core LogPanel is calling `logging.config.dictConfig` passing the 
 content of `log_panel.sublime-settings` file as argument.
 
-Since we are using `sublime.load_settings` we need to delay the setup until
-`plugin_loaded`.
-
 Since we need to call `logging.config.dictConfig` in both
 the python3.3 and the python3.8 plugin_hosts,
 we need to have two instances of the plugin.
-For this we copy the log_panel.py file into a new "LogPanel33" directory.
+For this we copy the `__init__.py` file into a new "LogPanel33" directory.
 Since we don't define any commands this copy doesn't create command conflicts.
 
 This also implies that the plugin code must be fully compatible with python3.3.
+The 3.3 compatibility is currently not explicitly tested.
+
+## Gotchas
+
+To avoid waiting on `plugin_loaded` we implement our own settings loading.
+This helps calling `logging.config.dictConfig` as soon as possible.
+
+Alternatively we could make `LogPanel` a dependency and only plugins that 
+do a lot of work at load time would need to add it.
 
 ## Logging utils
 
